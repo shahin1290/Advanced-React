@@ -1,7 +1,26 @@
 require('dotenv').config();
 const { ApolloServer, gql } = require('apollo-server');
-const products = require('./seed-data/data');
+const mongoose = require('mongoose');
+const Product = require('./models/product');
 const cloudinary = require('cloudinary');
+
+const MONGODB_URI = process.env.DATABASE_URL;
+
+console.log('connecting to', MONGODB_URI);
+
+mongoose
+  .connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    useFindAndModify: false,
+    useCreateIndex: true,
+  })
+  .then(() => {
+    console.log('connected to MongoDB');
+  })
+  .catch((error) => {
+    console.log('error connection to MongoDB:', error.message);
+  });
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -32,20 +51,25 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    allProducts: [Product!]!
+    addProduct(name: String!, description: String!): Product
     uploadPhoto(photo: Upload!): Photo!
   }
 `;
 
 const resolvers = {
   Query: {
-    allProducts: () => products,
+    allProducts: (root, args) => {
+      return Product.find({});
+    },
     allPhotos: () => {
-      console.log(photos);
       return photos;
     },
   },
   Mutation: {
+    addProduct: (root, args) => {
+      const product = new Product({ ...args });
+      return product.save();
+    },
     async uploadPhoto(parent, { photo }) {
       const { filename, createReadStream } = await photo;
 
