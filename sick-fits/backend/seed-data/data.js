@@ -5,7 +5,7 @@ function timestamp() {
   return new Date(stampy).toISOString();
 }
 
-export const products = [
+const products = [
   {
     name: 'Yeti Hondo',
     description: 'soo nice',
@@ -475,3 +475,5 @@ export const products = [
     // createdAt_offset: '+00:00',
   },
 ];
+
+module.exports = products
