@@ -2,6 +2,7 @@ require('dotenv').config();
 const { ApolloServer, gql } = require('apollo-server');
 const mongoose = require('mongoose');
 const Product = require('./models/product');
+const ProductImage = require('./models/productImage');
 const cloudinary = require('cloudinary');
 
 const MONGODB_URI = process.env.DATABASE_URL;
@@ -22,23 +23,74 @@ mongoose
     console.log('error connection to MongoDB:', error.message);
   });
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
-});
+/* const image = new ProductImage({
+    imageUrl: 'http://res.cloudinary.com/wesbos/image/upload/v1576791335/sick-fits-keystone/5dfbed262849d7961377c2c0.jpg',
+    product: '6020301160d78b45cf38b217',
+  }) */
 
-const photos = [];
+/* Product.findOneAndUpdate(
+  { name: 'shoe' },
+  { photo: '6020301160d78b45cf38b217' },
+  null,
+  function (err, docs) {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log('image saved!');
+      mongoose.connection.close();
+    }
+  }
+); */
+
+/* image.save().then((result) => {
+  console.log('image saved!');
+  mongoose.connection.close();
+}); */
+
+const uploadFile = async (file) => {
+  // The Upload scalar return a a promise
+  const { createReadStream } = await file;
+  const fileStream = createReadStream();
+
+  // Initiate Cloudinary with your credentials
+  cloudinary.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_KEY,
+    api_secret: process.env.CLOUDINARY_SECRET,
+  });
+
+  // Return the Cloudinary object when it's all good
+  return new Promise((resolve, reject) => {
+    const cloudStream = cloudinary.v2.uploader.upload_stream(function (
+      err,
+      fileUploaded
+    ) {
+      // In case something hit the fan
+      if (err) {
+        rejet(err);
+      }
+
+      // All good :smile:
+      resolve(fileUploaded);
+    });
+
+    fileStream.pipe(cloudStream);
+  });
+};
 
 const typeDefs = gql`
+  type Photo {
+    imageUrl: String!
+    id: ID!
+  }
+
   type Product {
     name: String!
     description: String!
+    photo: Photo
+    id: ID!
   }
-  type Photo {
-    filename: String!
-    path: String!
-  }
+
   enum Status {
     DRAFT
     AVAILABLE
@@ -51,10 +103,12 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    addProduct(name: String!, description: String!): Product
+    createProduct(name: String!, description: String!): Product
     uploadPhoto(photo: Upload!): Photo!
   }
 `;
+
+const photos = [];
 
 const resolvers = {
   Query: {
@@ -66,34 +120,16 @@ const resolvers = {
     },
   },
   Mutation: {
-    addProduct: (root, args) => {
+    createProduct: (root, args) => {
       const product = new Product({ ...args });
       return product.save();
     },
-    async uploadPhoto(parent, { photo }) {
-      const { filename, createReadStream } = await photo;
+    uploadPhoto: async (parent, args, context, info) => {
+      const file = await uploadFile(args.photo);
+      const newProductImage = new ProductImage({ imageUrl: file.secure_url });
+      await newProductImage.save();
 
-      try {
-        const result = await new Promise((resolve, reject) => {
-          createReadStream().pipe(
-            cloudinary.uploader.upload_stream((error, result) => {
-              if (error) {
-                reject(error);
-              }
-
-              resolve(result);
-            })
-          );
-        });
-
-        const newPhoto = { filename, path: result.secure_url };
-
-        photos.push(newPhoto);
-
-        return newPhoto;
-      } catch (err) {
-        console.log(err);
-      }
+      return newProductImage;
     },
   },
 };

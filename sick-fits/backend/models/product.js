@@ -10,6 +10,10 @@ const schema = new mongoose.Schema({
     type: String,
     minlength: 5
   },
+  photo: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProductImage'
+  }]
 })
 
 module.exports = mongoose.model('Product', schema)
