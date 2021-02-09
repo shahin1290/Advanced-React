@@ -1,9 +1,7 @@
 import { useMutation } from '@apollo/client';
 import gql from 'graphql-tag';
-import Router from 'next/router';
 import useForm from '../lib/useForm';
 import DisplayError from './ErrorMessage';
-import { ALL_PRODUCTS_QUERY } from './Products';
 import Form from './styles/Form';
 
 const CREATE_PRODUCT_MUTATION = gql`
@@ -11,8 +9,9 @@ const CREATE_PRODUCT_MUTATION = gql`
     # Which variables are getting passed in? And What types are they
     $name: String!
     $description: String!
+    $photo: Upload
   ) {
-    createProduct( name: $name, description: $description ) {
+    createProduct(name: $name, description: $description, photo: $photo) {
       id
       description
       name
@@ -20,37 +19,24 @@ const CREATE_PRODUCT_MUTATION = gql`
   }
 `;
 
-const UPLOAD_PHOTO_MUTATION = gql`
-  mutation uploadPhoto($photo: Upload!) {
-    uploadPhoto(photo: $photo) {
-      id
-    }
-  }
-`;
-
 export default function CreateProduct() {
-  const { inputs, handleChange, clearForm, resetForm } = useForm({
+  const { inputs, handleChange, clearForm } = useForm({
     image: '',
     name: 'Nice Shoes',
     description: 'These are the best shoes!',
   });
-  const [createProduct, { loading, error, data }] = useMutation(
+  const [createProduct, { loading, error }] = useMutation(
     CREATE_PRODUCT_MUTATION,
     {
       variables: inputs,
     }
   );
 
-  const [uploadPhoto] = useMutation(UPLOAD_PHOTO_MUTATION, {
-    variables: { photo: inputs.photo },
-  });
-
   return (
     <Form
       onSubmit={async (e) => {
         e.preventDefault();
         // Submit the inputfields to the backend:
-        await uploadPhoto();
         await createProduct();
         clearForm();
       }}

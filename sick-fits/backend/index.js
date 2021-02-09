@@ -103,7 +103,7 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    createProduct(name: String!, description: String!): Product
+    createProduct(name: String!, description: String!, photo: Upload): Product
     uploadPhoto(photo: Upload!): Photo!
   }
 `;
@@ -120,17 +120,21 @@ const resolvers = {
     },
   },
   Mutation: {
-    createProduct: (root, args) => {
-      const product = new Product({ ...args });
-      return product.save();
-    },
-    uploadPhoto: async (parent, args, context, info) => {
+    createProduct: async (root, args) => {
       const file = await uploadFile(args.photo);
       const newProductImage = new ProductImage({ imageUrl: file.secure_url });
       await newProductImage.save();
+      const product = new Product({
+        name: args.name,
+        description: args.description,
+      });
 
-      return newProductImage;
-    },
+      product.photo.push(newProductImage);
+
+      const createdProduct = await product.save();
+
+      return createdProduct;
+    }
   },
 };
 
